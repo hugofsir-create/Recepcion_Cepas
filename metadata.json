@@ -1,0 +1,7 @@
+{
+  "name": "Generador de Etiquetas Logísticas A4",
+  "description": "Una herramienta profesional PWA para generar etiquetas de inventario con SKU, lote, vencimiento y códigos únicos secuenciales, optimizada para impresión en formato A4 y uso offline.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
