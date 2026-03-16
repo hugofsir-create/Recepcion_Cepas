@@ -13,7 +13,7 @@ import SplashScreen from './components/SplashScreen';
 import { AnimatePresence } from 'framer-motion';
 import { 
   Printer, Trash2, Box, Database, Layers,
-  Search, Edit3, PackageCheck, FileSpreadsheet, AlertTriangle, BookOpen, Download, Upload, BarChart3, FileQuestion, Eye
+  Search, Edit3, PackageCheck, FileSpreadsheet, AlertTriangle, BookOpen, Download, Upload, BarChart3, FileQuestion, Eye, RotateCcw
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -269,6 +269,12 @@ const App: React.FC = () => {
     }
   };
 
+  const resetSequence = () => {
+    if(confirm("¿Reiniciar el contador de etiquetas a AA001?")) {
+      setCurrentCode("AA001");
+    }
+  };
+
   const filteredLabels = useMemo(() => {
     return labels.filter(l => 
       l.sku.includes(searchTerm.toUpperCase()) || 
@@ -299,6 +305,15 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
+          <button 
+            onClick={resetSequence}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 rounded-xl border border-slate-700 transition-all text-slate-400"
+            title="Reiniciar secuencia a AA001"
+          >
+            <RotateCcw size={18} />
+            <span className="text-xs font-black uppercase">Reiniciar Seq</span>
+          </button>
+
           <button 
             onClick={downloadTemplate}
             className="flex items-center space-x-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition-all text-slate-300"
