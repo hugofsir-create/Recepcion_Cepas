@@ -71,12 +71,20 @@ const LabelItem: React.FC<LabelItemProps> = ({ label, isPrintView = false }) => 
         </div>
       </div>
 
-      {/* 2. DESCRIPCIÓN */}
-      <div className="py-4">
-        <span className="text-2xl font-black text-gray-500 uppercase mb-1 block">DESCRIPCIÓN DEL MATERIAL</span>
-        <p className="text-6xl font-black leading-[1.1] text-black uppercase line-clamp-2">
-          {label.description}
-        </p>
+      {/* 2. DESCRIPCIÓN Y DATOS TÉCNICOS */}
+      <div className="grid grid-cols-3 gap-8 py-4 items-center">
+        <div className="col-span-2">
+          <span className="text-2xl font-black text-gray-500 uppercase mb-1 block">DESCRIPCIÓN DEL MATERIAL</span>
+          <p className="text-6xl font-black leading-[1.1] text-black uppercase line-clamp-2">
+            {label.description}
+          </p>
+        </div>
+        <div className="bg-gray-100 border-[2mm] border-black rounded-[6mm] p-4 text-center flex flex-col justify-center min-h-[40mm]">
+          <span className="text-xl font-black text-gray-700 uppercase block mb-1">CAJAS POR PALLET</span>
+          <span className="text-7xl font-black text-black leading-none">
+            {label.standardQty || label.boxCount || "-"}
+          </span>
+        </div>
       </div>
 
       {/* 3. SECCIÓN VENCIMIENTO (OPTIMIZADA) */}
@@ -105,17 +113,17 @@ const LabelItem: React.FC<LabelItemProps> = ({ label, isPrintView = false }) => 
 
       {/* 5. FOOTER: CANTIDADES Y PALLET */}
       <div className="flex justify-between items-end pt-5">
-        <div className="flex gap-6 min-w-[50%]">
-          <div className="flex-1 bg-gray-100 p-6 rounded-[8mm] border-4 border-gray-200">
-            <div className="text-center w-full">
-              <span className="text-2xl font-black text-gray-500 uppercase mb-1 block">CAJAS / PALLET</span>
-              <span className="text-8xl font-black text-black leading-none">{label.standardQty}</span>
-            </div>
-          </div>
+        <div className="flex gap-6 min-w-[55%]">
           <div className="flex-1 bg-blue-50 p-6 rounded-[8mm] border-4 border-blue-200">
             <div className="text-center w-full">
-              <span className="text-2xl font-black text-blue-600 uppercase mb-1 block">TOTAL CAJAS</span>
-              <span className="text-8xl font-black text-blue-900 leading-none">{label.boxCount}</span>
+              <span className="text-2xl font-black text-blue-600 uppercase mb-1 block">CANTIDAD EN ESTE PALLET</span>
+              <span className="text-[7rem] font-black text-blue-900 leading-none">{label.boxCount}</span>
+            </div>
+          </div>
+          <div className="flex-1 bg-gray-50 p-6 rounded-[8mm] border-4 border-gray-200">
+            <div className="text-center w-full">
+              <span className="text-2xl font-black text-gray-500 uppercase mb-1 block">TOTAL DEL LOTE</span>
+              <span className="text-[7rem] font-black text-gray-800 leading-none">{label.totalBatchQty}</span>
             </div>
           </div>
         </div>

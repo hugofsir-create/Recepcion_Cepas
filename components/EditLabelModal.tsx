@@ -46,11 +46,11 @@ const EditLabelModal: React.FC<EditLabelModalProps> = ({ label, onClose, onSave 
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Cajas / Pallet (Estándar)</label>
-              <input type="number" name="standardQty" value={formData.standardQty} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100" />
+              <input type="number" name="standardQty" value={formData.standardQty || ''} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100" />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Cantidad Cajas (Actual)</label>
-              <input type="number" name="boxCount" value={formData.boxCount} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100" />
+              <input type="number" name="boxCount" value={formData.boxCount || ''} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100" />
             </div>
           </div>
 
