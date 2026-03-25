@@ -42,6 +42,20 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
     setRows(rows.filter((_, i) => i !== index));
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number, field: string) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const nextIndex = e.key === 'ArrowDown' ? index + 1 : index - 1;
+      
+      if (nextIndex >= 0 && nextIndex < rows.length) {
+        const nextInput = document.querySelector(`input[data-row="${nextIndex}"][data-field="${field}"]`) as HTMLInputElement;
+        if (nextInput) {
+          nextInput.focus();
+        }
+      }
+    }
+  };
+
   const handleProcess = () => {
     const validEntries = rows
       .filter(r => r.sku.trim() !== '' && r.qty.trim() !== '')
@@ -105,25 +119,36 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                       placeholder="Escribir SKU..."
                       value={row.sku}
                       onChange={(e) => updateRow(idx, 'sku', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'sku')}
+                      data-row={idx}
+                      data-field="sku"
                     />
                   </td>
                   <td className="p-1">
                     <input 
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       className="w-full bg-transparent px-3 py-3 outline-none text-slate-200 font-bold" 
                       placeholder="0"
                       value={row.qty}
-                      onChange={(e) => updateRow(idx, 'qty', e.target.value)}
+                      onChange={(e) => updateRow(idx, 'qty', e.target.value.replace(/\D/g, ''))}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'qty')}
+                      data-row={idx}
+                      data-field="qty"
                     />
                   </td>
                   <td className="p-1 bg-blue-500/5">
                     <div className="relative">
                       <input 
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         className={`w-full bg-transparent px-3 py-3 outline-none font-bold ${isKnown ? 'text-blue-400' : 'text-slate-400'}`} 
                         placeholder="Ej: 48"
                         value={row.qtyPerPallet}
-                        onChange={(e) => updateRow(idx, 'qtyPerPallet', e.target.value)}
+                        onChange={(e) => updateRow(idx, 'qtyPerPallet', e.target.value.replace(/\D/g, ''))}
+                        onKeyDown={(e) => handleKeyDown(e, idx, 'qtyPerPallet')}
+                        data-row={idx}
+                        data-field="qtyPerPallet"
                       />
                       {isKnown && <Package size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-500/50" />}
                     </div>
@@ -134,6 +159,9 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                       placeholder="LOTE"
                       value={row.batch}
                       onChange={(e) => updateRow(idx, 'batch', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'batch')}
+                      data-row={idx}
+                      data-field="batch"
                     />
                   </td>
                   <td className="p-1">
@@ -142,6 +170,9 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                       className="w-full bg-transparent px-3 py-3 outline-none text-slate-500" 
                       value={row.receptionDate}
                       onChange={(e) => updateRow(idx, 'receptionDate', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'receptionDate')}
+                      data-row={idx}
+                      data-field="receptionDate"
                     />
                   </td>
                   <td className="p-1">
@@ -150,6 +181,9 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                       className="w-full bg-transparent px-3 py-3 outline-none text-slate-500" 
                       value={row.expDate}
                       onChange={(e) => updateRow(idx, 'expDate', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'expDate')}
+                      data-row={idx}
+                      data-field="expDate"
                     />
                   </td>
                   <td className="p-1 text-center">

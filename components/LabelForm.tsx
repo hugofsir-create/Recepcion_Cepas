@@ -106,10 +106,11 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
           <div>
             <label className={labelClass}><Package size={12}/> Cajas/Pallet</label>
             <input 
-              type="number"
+              type="text"
+              inputMode="numeric"
               name="qtyPerPallet"
               value={formData.qtyPerPallet}
-              onChange={handleChange}
+              onChange={(e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value.replace(/\D/g, '') }))}
               placeholder="Ej: 48"
               className={inputClass}
             />
@@ -118,10 +119,11 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
             <label className={labelClass}><Hash size={12}/> Cant. Total</label>
             <input 
               required
-              type="number"
+              type="text"
+              inputMode="numeric"
               name="totalBatchQty"
               value={formData.totalBatchQty}
-              onChange={handleChange}
+              onChange={(e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value.replace(/\D/g, '') }))}
               placeholder="Ej: 144"
               className={inputClass}
             />
