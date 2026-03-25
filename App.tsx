@@ -532,20 +532,29 @@ const App: React.FC = () => {
             </div>
 
             {selectedIds.length > 0 && (
-              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-2">
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center justify-between animate-in slide-in-from-top-2">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="text-red-500" size={20} />
-                  <span className="text-sm font-black text-red-400 uppercase tracking-tight">
+                  <AlertTriangle className="text-blue-500" size={20} />
+                  <span className="text-sm font-black text-slate-100 uppercase tracking-tight">
                     {selectedIds.length} Pallets seleccionados
                   </span>
                 </div>
-                <button
-                  onClick={handleBulkDelete}
-                  className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-xl font-black text-xs transition-all shadow-lg shadow-red-900/20 flex items-center gap-2"
-                >
-                  <Trash2 size={14} />
-                  ELIMINAR SELECCIONADOS
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePrintSelected}
+                    className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl font-black text-xs transition-all shadow-lg shadow-green-900/20 flex items-center gap-2 active:scale-95"
+                  >
+                    <Printer size={14} />
+                    IMPRIMIR SELECCIONADOS
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded-xl font-black text-xs transition-all shadow-lg shadow-red-900/20 flex items-center gap-2 active:scale-95"
+                  >
+                    <Trash2 size={14} />
+                    ELIMINAR SELECCIONADOS
+                  </button>
+                </div>
               </div>
             )}
 

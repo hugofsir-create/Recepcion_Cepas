@@ -9,6 +9,7 @@ interface BulkInputGridProps {
 }
 
 const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate }) => {
+  const [globalTripNumber, setGlobalTripNumber] = useState('');
   const [rows, setRows] = useState([
     { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
     { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
@@ -66,7 +67,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
         batch: r.batch.trim().toUpperCase(),
         expDate: r.expDate,
         receptionDate: r.receptionDate,
-        tripNumber: r.tripNumber.trim().toUpperCase()
+        tripNumber: (r.tripNumber.trim() || globalTripNumber.trim()).toUpperCase()
       }));
     
     if (validEntries.length === 0) {
@@ -76,6 +77,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
     
     onGenerate(validEntries);
     setRows(Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' }));
+    setGlobalTripNumber('');
   };
 
   return (
@@ -88,12 +90,23 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
           </h3>
           <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Recepción de múltiples SKUs simultáneos</p>
         </div>
-        <button 
-          onClick={addRows}
-          className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all"
-        >
-          <Plus size={14} /> +5 FILAS
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col">
+            <label className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Nº Viaje Global</label>
+            <input 
+              placeholder="Ej: V-100"
+              value={globalTripNumber}
+              onChange={(e) => setGlobalTripNumber(e.target.value.toUpperCase())}
+              className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
+            />
+          </div>
+          <button 
+            onClick={addRows}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all mt-4"
+          >
+            <Plus size={14} /> +5 FILAS
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto max-h-[500px]">
