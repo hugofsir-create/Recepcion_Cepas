@@ -35,6 +35,8 @@ const App: React.FC = () => {
   const [editingLabel, setEditingLabel] = useState<ProductLabel | null>(null);
   const [previewingLabel, setPreviewingLabel] = useState<ProductLabel | null>(null);
   const [printingSingle, setPrintingSingle] = useState<ProductLabel | null>(null);
+  const [printingSubset, setPrintingSubset] = useState<ProductLabel[] | null>(null);
+  const [isPrintingSelected, setIsPrintingSelected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSplash, setShowSplash] = useState(true);
 
@@ -165,10 +167,19 @@ const App: React.FC = () => {
     
     setLabels(prev => [...prev, ...allNewLabels]);
     setCurrentCode(tempSeq);
+
+    // Trigger print for new labels
+    setPrintingSubset(allNewLabels);
+    setTimeout(() => {
+      window.print();
+      setPrintingSubset(null);
+    }, 200);
   };
 
   const handlePrintSingle = (label: ProductLabel) => {
     setPrintingSingle(label);
+    setPrintingSubset(null);
+    setIsPrintingSelected(false);
     setPreviewingLabel(null);
     setTimeout(() => {
       window.print();
@@ -178,7 +189,22 @@ const App: React.FC = () => {
 
   const handlePrintAll = () => {
     setPrintingSingle(null);
-    window.print();
+    setPrintingSubset(null);
+    setIsPrintingSelected(false);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintSelected = () => {
+    if (selectedIds.length === 0) return;
+    setIsPrintingSelected(true);
+    setPrintingSingle(null);
+    setPrintingSubset(null);
+    setTimeout(() => {
+      window.print();
+      setIsPrintingSelected(false);
+    }, 150);
   };
 
   const updateLabel = (updated: ProductLabel) => {
@@ -328,6 +354,16 @@ const App: React.FC = () => {
             <span className="text-xs font-black text-green-400 uppercase">Importar Excel</span>
             <input type="file" accept=".xlsx, .xls, .csv" onChange={handleImportMaster} className="hidden" />
           </label>
+
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handlePrintSelected}
+              className="flex items-center space-x-2 bg-blue-600 text-white px-7 py-2.5 rounded-xl hover:bg-blue-500 transition-all shadow-xl font-black text-sm active:scale-95 animate-in fade-in zoom-in duration-300"
+            >
+              <Printer size={18} />
+              <span>IMPRIMIR SELECCIONADOS ({selectedIds.length})</span>
+            </button>
+          )}
 
           <button
             onClick={handlePrintAll}
@@ -528,6 +564,14 @@ const App: React.FC = () => {
         <div className="flex flex-col bg-white text-black min-h-screen">
           {printingSingle ? (
             <LabelItem label={printingSingle} isPrintView={true} />
+          ) : printingSubset ? (
+            printingSubset.map((label) => (
+              <LabelItem key={label.id} label={label} isPrintView={true} />
+            ))
+          ) : isPrintingSelected ? (
+            labels.filter(l => selectedIds.includes(l.id)).map((label) => (
+              <LabelItem key={label.id} label={label} isPrintView={true} />
+            ))
           ) : (
             labels.map((label) => (
               <LabelItem key={label.id} label={label} isPrintView={true} />
