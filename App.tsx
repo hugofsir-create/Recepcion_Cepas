@@ -142,6 +142,14 @@ const App: React.FC = () => {
     const labelsWithIds = newLabels.map(l => ({ ...l, id: crypto.randomUUID() })) as ProductLabel[];
     setLabels(prev => [...prev, ...labelsWithIds]);
     setCurrentCode(nextSeq);
+
+    if (data.shouldPrint) {
+      setPrintingSubset(labelsWithIds);
+      setTimeout(() => {
+        window.print();
+        setPrintingSubset(null);
+      }, 200);
+    }
   };
 
   const handleBulkGenerate = (entries: any[]) => {

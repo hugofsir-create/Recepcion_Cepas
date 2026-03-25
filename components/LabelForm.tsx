@@ -37,13 +37,13 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
     }
   }, [formData.sku, masterData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, shouldPrint: boolean = false) => {
     e.preventDefault();
     if (!formData.sku || !formData.totalBatchQty) {
       alert("Por favor completa los campos obligatorios.");
       return;
     }
-    onAdd(formData);
+    onAdd({ ...formData, shouldPrint });
     setFormData(prev => ({
       ...prev,
       sku: '',
@@ -64,7 +64,7 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
   const labelClass = "text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-2";
 
   return (
-    <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl space-y-5">
+    <form onSubmit={(e) => handleSubmit(e, true)} className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl space-y-5">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-black text-slate-100 italic uppercase tracking-tighter">Nueva Recepción</h2>
         <div className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded-lg text-[10px] font-black border border-blue-500/20">
@@ -153,13 +153,23 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
         </div>
       </div>
 
-      <button 
-        type="submit"
-        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-95"
-      >
-        <Plus size={20}/>
-        GENERAR ETIQUETAS
-      </button>
+      <div className="flex gap-3">
+        <button 
+          type="button"
+          onClick={(e) => handleSubmit(e, false)}
+          className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-4 rounded-2xl transition-all border border-slate-700 flex items-center justify-center gap-2 active:scale-95"
+        >
+          <Plus size={20}/>
+          GENERAR
+        </button>
+        <button 
+          type="submit"
+          className="flex-[1.5] bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2 active:scale-95"
+        >
+          <PackageCheck size={20}/>
+          GENERAR E IMPRIMIR
+        </button>
+      </div>
     </form>
   );
 };
