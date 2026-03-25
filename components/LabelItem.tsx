@@ -28,7 +28,7 @@ const LabelItem: React.FC<LabelItemProps> = ({ label, isPrintView = false }) => 
         <div className="flex justify-between items-start border-b border-slate-800 pb-2">
           <div>
             <span className="text-[10px] font-bold text-slate-500 block uppercase">SKU</span>
-            <span className="text-sm font-mono font-black text-blue-400">{label.sku}</span>
+            <span className="text-sm font-mono font-black text-blue-400">{label.sku} {label.tripNumber && <span className="text-slate-500 text-[8px] ml-1">VIAJE: {label.tripNumber}</span>}</span>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold text-slate-500 block uppercase">ID</span>
@@ -58,7 +58,7 @@ const LabelItem: React.FC<LabelItemProps> = ({ label, isPrintView = false }) => 
       {/* 1. SECCIÓN SKU: EL DATO MÁS IMPORTANTE ARRIBA */}
       <div className={`flex justify-between items-start border-b-[4mm] ${borderClass} pb-4`}>
         <div className="flex-1">
-          <span className="text-3xl font-black text-gray-500 uppercase tracking-tighter mb-1 block">SKU PRODUCTO</span>
+          <span className="text-3xl font-black text-gray-500 uppercase tracking-tighter mb-1 block">SKU PRODUCTO {label.tripNumber && <span className="text-blue-600 ml-4">VIAJE: {label.tripNumber}</span>}</span>
           <span className="text-[12rem] leading-none font-mono font-black text-black tracking-tighter">
             {label.sku}
           </span>

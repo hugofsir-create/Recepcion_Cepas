@@ -5,20 +5,20 @@ import { FileSpreadsheet, Plus, Trash2, Layers, AlertCircle, Package } from 'luc
 
 interface BulkInputGridProps {
   masterData: Record<string, MaterialMaster>;
-  onGenerate: (entries: { sku: string; totalQty: number; qtyPerPallet: number; batch: string; expDate: string; receptionDate: string }[]) => void;
+  onGenerate: (entries: { sku: string; totalQty: number; qtyPerPallet: number; batch: string; expDate: string; receptionDate: string; tripNumber: string }[]) => void;
 }
 
 const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate }) => {
   const [rows, setRows] = useState([
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] },
+    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
   ]);
 
   const addRows = () => {
-    setRows([...rows, ...Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] })]);
+    setRows([...rows, ...Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' })]);
   };
 
   const updateRow = (index: number, field: string, value: string) => {
@@ -65,7 +65,8 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
         qtyPerPallet: parseInt(r.qtyPerPallet, 10) || (parseInt(r.qty, 10) || 0), // Si no hay, usa el total
         batch: r.batch.trim().toUpperCase(),
         expDate: r.expDate,
-        receptionDate: r.receptionDate
+        receptionDate: r.receptionDate,
+        tripNumber: r.tripNumber.trim().toUpperCase()
       }));
     
     if (validEntries.length === 0) {
@@ -74,7 +75,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
     }
     
     onGenerate(validEntries);
-    setRows(Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0] }));
+    setRows(Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' }));
   };
 
   return (
@@ -103,6 +104,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Cajas Totales</th>
               <th className="px-4 py-4 font-black text-blue-500/50 uppercase tracking-widest border-b border-slate-800 bg-blue-500/5">Cajas / Pallet</th>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Lote</th>
+              <th className="px-4 py-4 font-black text-blue-500/50 uppercase tracking-widest border-b border-slate-800 bg-blue-500/5">Nº Viaje</th>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Recepción</th>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Vencimiento</th>
               <th className="px-4 py-4 w-10 border-b border-slate-800"></th>
@@ -162,6 +164,17 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                       onKeyDown={(e) => handleKeyDown(e, idx, 'batch')}
                       data-row={idx}
                       data-field="batch"
+                    />
+                  </td>
+                  <td className="p-1 bg-blue-500/5">
+                    <input 
+                      className="w-full bg-transparent px-3 py-3 outline-none text-blue-400 uppercase font-mono" 
+                      placeholder="VIAJE"
+                      value={row.tripNumber}
+                      onChange={(e) => updateRow(idx, 'tripNumber', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'tripNumber')}
+                      data-row={idx}
+                      data-field="tripNumber"
                     />
                   </td>
                   <td className="p-1">

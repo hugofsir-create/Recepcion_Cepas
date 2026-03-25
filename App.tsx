@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [previewingLabel, setPreviewingLabel] = useState<ProductLabel | null>(null);
   const [printingSingle, setPrintingSingle] = useState<ProductLabel | null>(null);
   const [printingSubset, setPrintingSubset] = useState<ProductLabel[] | null>(null);
+  const [printingTrip, setPrintingTrip] = useState<string | null>(null);
   const [isPrintingSelected, setIsPrintingSelected] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSplash, setShowSplash] = useState(true);
@@ -137,7 +138,8 @@ const App: React.FC = () => {
       masterData,
       currentCode,
       data.description,
-      parseInt(data.qtyPerPallet || "0")
+      parseInt(data.qtyPerPallet || "0"),
+      data.tripNumber
     );
     const labelsWithIds = newLabels.map(l => ({ ...l, id: crypto.randomUUID() })) as ProductLabel[];
     setLabels(prev => [...prev, ...labelsWithIds]);
@@ -166,7 +168,8 @@ const App: React.FC = () => {
         masterData,
         tempSeq,
         undefined,
-        entry.qtyPerPallet
+        entry.qtyPerPallet,
+        entry.tripNumber
       );
       const ready = splitLabels.map(l => ({ ...l, id: crypto.randomUUID() })) as ProductLabel[];
       allNewLabels = [...allNewLabels, ...ready];
@@ -187,6 +190,7 @@ const App: React.FC = () => {
   const handlePrintSingle = (label: ProductLabel) => {
     setPrintingSingle(label);
     setPrintingSubset(null);
+    setPrintingTrip(null);
     setIsPrintingSelected(false);
     setPreviewingLabel(null);
     setTimeout(() => {
@@ -198,6 +202,7 @@ const App: React.FC = () => {
   const handlePrintAll = () => {
     setPrintingSingle(null);
     setPrintingSubset(null);
+    setPrintingTrip(null);
     setIsPrintingSelected(false);
     setTimeout(() => {
       window.print();
@@ -209,9 +214,24 @@ const App: React.FC = () => {
     setIsPrintingSelected(true);
     setPrintingSingle(null);
     setPrintingSubset(null);
+    setPrintingTrip(null);
     setTimeout(() => {
       window.print();
       setIsPrintingSelected(false);
+    }, 150);
+  };
+
+  const [tripSearch, setTripSearch] = useState('');
+
+  const handlePrintTrip = (trip: string) => {
+    if (!trip) return;
+    setPrintingTrip(trip);
+    setPrintingSingle(null);
+    setPrintingSubset(null);
+    setIsPrintingSelected(false);
+    setTimeout(() => {
+      window.print();
+      setPrintingTrip(null);
     }, 150);
   };
 
@@ -313,7 +333,8 @@ const App: React.FC = () => {
     return labels.filter(l => 
       l.sku.includes(searchTerm.toUpperCase()) || 
       l.batch.includes(searchTerm.toUpperCase()) ||
-      l.uniqueCode.includes(searchTerm.toUpperCase())
+      l.uniqueCode.includes(searchTerm.toUpperCase()) ||
+      (l.tripNumber && l.tripNumber.includes(searchTerm.toUpperCase()))
     );
   }, [labels, searchTerm]);
 
@@ -453,6 +474,31 @@ const App: React.FC = () => {
                   Vaciar Inventario
                 </button>
               </div>
+
+              <div className="pt-6 border-t border-slate-800 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Printer size={14} className="text-blue-500" />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Imprimir por Viaje</span>
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    placeholder="Nº de Viaje..."
+                    value={tripSearch}
+                    onChange={(e) => setTripSearch(e.target.value.toUpperCase())}
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
+                  />
+                  <button
+                    onClick={() => handlePrintTrip(tripSearch)}
+                    disabled={!tripSearch || !labels.some(l => l.tripNumber === tripSearch)}
+                    className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all shadow-lg active:scale-95"
+                  >
+                    Imprimir
+                  </button>
+                </div>
+                {!labels.some(l => l.tripNumber === tripSearch) && tripSearch && (
+                  <p className="text-[9px] text-red-500/50 font-bold uppercase text-center">No hay etiquetas con este viaje</p>
+                )}
+              </div>
             </div>
           )}
         </aside>
@@ -574,6 +620,10 @@ const App: React.FC = () => {
             <LabelItem label={printingSingle} isPrintView={true} />
           ) : printingSubset ? (
             printingSubset.map((label) => (
+              <LabelItem key={label.id} label={label} isPrintView={true} />
+            ))
+          ) : printingTrip ? (
+            labels.filter(l => l.tripNumber === printingTrip).map((label) => (
               <LabelItem key={label.id} label={label} isPrintView={true} />
             ))
           ) : isPrintingSelected ? (

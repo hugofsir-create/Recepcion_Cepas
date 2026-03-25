@@ -34,7 +34,8 @@ export function splitIntoPallets(
   master: Record<string, MaterialMaster>,
   startSequence: string,
   overrideDescription?: string,
-  overrideQtyPerPallet?: number
+  overrideQtyPerPallet?: number,
+  tripNumber?: string
 ): { labels: Omit<ProductLabel, 'id'>[], nextSeq: string } {
   // Priorizar datos manuales del formulario, si no existen, usar maestro, si no, usar valores por defecto
   const item = master[sku];
@@ -47,7 +48,7 @@ export function splitIntoPallets(
   let palletCount = 0;
   
   const totalPalletsNeeded = Math.ceil(totalQty / perPallet) || 1;
-
+ 
   while (remaining > 0) {
     palletCount++;
     const qtyForThisPallet = Math.min(remaining, perPallet);
@@ -63,7 +64,8 @@ export function splitIntoPallets(
       standardQty: perPallet,
       totalBatchQty: totalQty,
       palletIndex: palletCount,
-      totalPallets: totalPalletsNeeded
+      totalPallets: totalPalletsNeeded,
+      tripNumber: tripNumber?.toUpperCase()
     });
     
     currentSeq = getNextSequence(currentSeq);

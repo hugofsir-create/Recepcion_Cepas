@@ -18,6 +18,7 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
     batch: '',
     expirationDate: '',
     totalBatchQty: '',
+    tripNumber: '',
   });
 
   const [fromMaster, setFromMaster] = useState(false);
@@ -52,6 +53,7 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
       batch: '',
       expirationDate: '',
       totalBatchQty: '',
+      tripNumber: '',
     }));
   };
 
@@ -130,15 +132,27 @@ const LabelForm: React.FC<LabelFormProps> = ({ onAdd, nextCode, masterData }) =>
           </div>
         </div>
 
-        <div>
-          <label className={labelClass}>Lote / Partida</label>
-          <input 
-            name="batch"
-            value={formData.batch}
-            onChange={handleChange}
-            placeholder="Ej: LOTE-A24"
-            className={`${inputClass} font-mono uppercase`}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Lote / Partida</label>
+            <input 
+              name="batch"
+              value={formData.batch}
+              onChange={handleChange}
+              placeholder="Ej: LOTE-A24"
+              className={`${inputClass} font-mono uppercase`}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Nº de Viaje</label>
+            <input 
+              name="tripNumber"
+              value={formData.tripNumber}
+              onChange={handleChange}
+              placeholder="Ej: V-001"
+              className={`${inputClass} font-mono uppercase border-blue-500/30`}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

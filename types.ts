@@ -18,6 +18,7 @@ export interface ProductLabel {
   totalBatchQty: number; // Total quantity from shipment
   palletIndex: number; // e.g., 1
   totalPallets: number; // e.g., 3
+  tripNumber?: string; // Trip number
 }
 
 export interface AppState {

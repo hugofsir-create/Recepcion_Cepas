@@ -89,6 +89,10 @@ const EditLabelModal: React.FC<EditLabelModalProps> = ({ label, onClose, onSave 
               <label className="text-[10px] font-bold text-slate-500 uppercase">Vencimiento</label>
               <input type="date" name="expirationDate" value={formData.expirationDate} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100" />
             </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Número de Viaje</label>
+              <input name="tripNumber" value={formData.tripNumber || ''} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-slate-100 uppercase font-mono" />
+            </div>
           </div>
 
           <div className="pt-4 flex gap-3">
