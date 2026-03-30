@@ -11,8 +11,9 @@ interface LabelItemProps {
 const LabelItem: React.FC<LabelItemProps> = ({ label, isPrintView = false }) => {
   const formatMonthYear = (dateStr: string) => {
     if (!dateStr) return "-";
+    // Usar UTC para evitar desfases de zona horaria (YYYY-MM-DD se interpreta como UTC 00:00)
     const date = new Date(dateStr);
-    return date.toLocaleDateString('es-ES', { month: '2-digit', year: 'numeric' }).toUpperCase();
+    return date.toLocaleDateString('es-ES', { month: '2-digit', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
   };
 
   // Dimensiones optimizadas para A4 Landscape (297x210mm)

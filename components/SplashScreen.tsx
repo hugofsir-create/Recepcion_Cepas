@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Truck } from 'lucide-react';
 
 const SplashScreen: React.FC = () => {
   const [progress, setProgress] = useState(0);
@@ -31,7 +32,7 @@ const SplashScreen: React.FC = () => {
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-slate-950 text-white"
     >
       <div className="flex flex-col items-center max-w-sm w-full px-8">
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-6">
           <div className="flex justify-between items-end">
             <motion.span 
               initial={{ x: -20, opacity: 0 }}
@@ -44,13 +45,23 @@ const SplashScreen: React.FC = () => {
             <span className="text-xs font-mono text-slate-500">{Math.round(progress)}%</span>
           </div>
           
-          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+          <div className="relative pt-6">
             <motion.div 
-              className="h-full bg-gradient-to-r from-blue-600 to-indigo-600"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
+              className="absolute top-0 text-blue-500"
+              animate={{ left: `${progress}%` }}
               transition={{ ease: "linear" }}
-            />
+              style={{ x: '-50%' }}
+            >
+              <Truck size={24} className="fill-blue-500/20" />
+            </motion.div>
+            <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ ease: "linear" }}
+              />
+            </div>
           </div>
           
           <motion.p 

@@ -19,7 +19,8 @@ export function getNextSequence(current: string): string {
 
 export function formatDate(dateStr: string): string {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString('es-ES');
+  // Usar UTC para evitar desfases de zona horaria (YYYY-MM-DD se interpreta como UTC 00:00)
+  return new Date(dateStr).toLocaleDateString('es-ES', { timeZone: 'UTC' });
 }
 
 /**
