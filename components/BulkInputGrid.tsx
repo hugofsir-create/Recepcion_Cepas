@@ -5,32 +5,39 @@ import { FileSpreadsheet, Plus, Trash2, Layers, AlertCircle, Package } from 'luc
 
 interface BulkInputGridProps {
   masterData: Record<string, MaterialMaster>;
-  onGenerate: (entries: { sku: string; totalQty: number; qtyPerPallet: number; batch: string; expDate: string; receptionDate: string; tripNumber: string }[]) => void;
+  onGenerate: (entries: { sku: string; description: string; totalQty: number; qtyPerPallet: number; batch: string; expDate: string; receptionDate: string; tripNumber: string }[]) => void;
 }
 
 const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate }) => {
   const [globalTripNumber, setGlobalTripNumber] = useState('');
   const [rows, setRows] = useState([
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
-    { sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
+    { sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' },
   ]);
 
+  const handleGlobalTripChange = (value: string) => {
+    const upperValue = value.toUpperCase();
+    setGlobalTripNumber(upperValue);
+    setRows(prevRows => prevRows.map(row => ({ ...row, tripNumber: upperValue })));
+  };
+
   const addRows = () => {
-    setRows([...rows, ...Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' })]);
+    setRows([...rows, ...Array(5).fill({ sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: globalTripNumber })]);
   };
 
   const updateRow = (index: number, field: string, value: string) => {
     const newRows = [...rows];
     const updatedRow = { ...newRows[index], [field]: value };
     
-    // Al cambiar SKU, intentamos autocompletar Cajas/Pallet desde el maestro
+    // Al cambiar SKU, intentamos autocompletar Cajas/Pallet y Descripción desde el maestro
     if (field === 'sku') {
       const skuUpper = value.trim().toUpperCase();
       if (masterData[skuUpper]) {
         updatedRow.qtyPerPallet = masterData[skuUpper].qtyPerPallet.toString();
+        updatedRow.description = masterData[skuUpper].description;
       }
     }
     
@@ -62,6 +69,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
       .filter(r => r.sku.trim() !== '' && r.qty.trim() !== '')
       .map(r => ({
         sku: r.sku.trim().toUpperCase(),
+        description: r.description.trim() || "Producto Nuevo",
         totalQty: parseInt(r.qty, 10) || 0,
         qtyPerPallet: parseInt(r.qtyPerPallet, 10) || (parseInt(r.qty, 10) || 0), // Si no hay, usa el total
         batch: r.batch.trim().toUpperCase(),
@@ -76,7 +84,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
     }
     
     onGenerate(validEntries);
-    setRows(Array(5).fill({ sku: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' }));
+    setRows(Array(5).fill({ sku: '', description: '', qty: '', qtyPerPallet: '', batch: '', expDate: '', receptionDate: new Date().toISOString().split('T')[0], tripNumber: '' }));
     setGlobalTripNumber('');
   };
 
@@ -96,7 +104,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
             <input 
               placeholder="Ej: V-100"
               value={globalTripNumber}
-              onChange={(e) => setGlobalTripNumber(e.target.value.toUpperCase())}
+              onChange={(e) => handleGlobalTripChange(e.target.value)}
               className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all font-mono"
             />
           </div>
@@ -114,6 +122,7 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
           <thead className="bg-slate-950 sticky top-0 z-10">
             <tr>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">SKU</th>
+              <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Descripción</th>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Cajas Totales</th>
               <th className="px-4 py-4 font-black text-blue-500/50 uppercase tracking-widest border-b border-slate-800 bg-blue-500/5">Cajas / Pallet</th>
               <th className="px-4 py-4 font-black text-slate-500 uppercase tracking-widest border-b border-slate-800">Lote</th>
@@ -131,12 +140,23 @@ const BulkInputGrid: React.FC<BulkInputGridProps> = ({ masterData, onGenerate })
                   <td className="p-1">
                     <input 
                       className={`w-full bg-transparent px-3 py-3 outline-none font-mono font-bold ${isKnown ? 'text-blue-400' : 'text-slate-200'}`}
-                      placeholder="Escribir SKU..."
+                      placeholder="SKU..."
                       value={row.sku}
                       onChange={(e) => updateRow(idx, 'sku', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'sku')}
                       data-row={idx}
                       data-field="sku"
+                    />
+                  </td>
+                  <td className="p-1">
+                    <input 
+                      className="w-full bg-transparent px-3 py-3 outline-none text-slate-300 italic"
+                      placeholder="Descripción..."
+                      value={row.description}
+                      onChange={(e) => updateRow(idx, 'description', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'description')}
+                      data-row={idx}
+                      data-field="description"
                     />
                   </td>
                   <td className="p-1">

@@ -157,17 +157,30 @@ const App: React.FC = () => {
   const handleBulkGenerate = (entries: any[]) => {
     let tempSeq = currentCode;
     let allNewLabels: ProductLabel[] = [];
+    const newMasterData = { ...masterData };
+    let masterChanged = false;
     
     entries.forEach(entry => {
+      // Si el SKU no existe en el maestro o la descripción es diferente a "Producto Nuevo", lo agregamos/actualizamos
+      const skuUpper = entry.sku.toUpperCase();
+      if (!newMasterData[skuUpper] || (entry.description !== "Producto Nuevo" && newMasterData[skuUpper].description !== entry.description)) {
+        newMasterData[skuUpper] = {
+          sku: skuUpper,
+          description: entry.description,
+          qtyPerPallet: entry.qtyPerPallet
+        };
+        masterChanged = true;
+      }
+
       const { labels: splitLabels, nextSeq } = splitIntoPallets(
         entry.sku,
         entry.totalQty,
         entry.batch,
         entry.expDate,
         entry.receptionDate,
-        masterData,
+        newMasterData, // Usar el maestro actualizado
         tempSeq,
-        undefined,
+        entry.description,
         entry.qtyPerPallet,
         entry.tripNumber
       );
@@ -176,6 +189,9 @@ const App: React.FC = () => {
       tempSeq = nextSeq;
     });
     
+    if (masterChanged) {
+      setMasterData(newMasterData);
+    }
     setLabels(prev => [...prev, ...allNewLabels]);
     setCurrentCode(tempSeq);
 
