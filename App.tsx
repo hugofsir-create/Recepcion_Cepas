@@ -128,6 +128,13 @@ const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSplash, setShowSplash] = useState(true);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -150,7 +157,7 @@ const App: React.FC = () => {
     const unsubLabels = onSnapshot(collection(db, 'users', user.uid, 'labels'), (snap) => {
       const cloudLabels = snap.docs.map(d => d.data() as ProductLabel);
       if (cloudLabels.length > 0) setLabels(cloudLabels);
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/labels`));
 
     const unsubMaster = onSnapshot(collection(db, 'users', user.uid, 'materials'), (snap) => {
       const cloudMaster: Record<string, MaterialMaster> = {};
@@ -159,14 +166,14 @@ const App: React.FC = () => {
         cloudMaster[m.sku] = m;
       });
       if (Object.keys(cloudMaster).length > 0) setMasterData(cloudMaster);
-    });
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/materials`));
 
     const unsubConfig = onSnapshot(doc(db, 'users', user.uid, 'config', 'main'), (snap) => {
       if (snap.exists()) {
         const config = snap.data();
         if (config.currentSequence) setCurrentCode(config.currentSequence);
       }
-    });
+    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/config/main`));
 
     return () => { unsubLabels(); unsubMaster(); unsubConfig(); };
   }, [user]);
