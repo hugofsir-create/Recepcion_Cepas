@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Validation Helpers
+    function isValidMaterial(data) {
+      return data.keys().hasAll(['sku', 'description', 'qtyPerPallet']) &&
+             data.keys().size() == 3 &&
+             data.sku is string && data.sku.size() > 0 &&
+             data.description is string &&
+             data.qtyPerPallet is number;
+    }
+
+    function isValidLabel(data) {
+      return data.keys().hasAll(['id', 'sku', 'description', 'receptionDate', 'batch', 'uniqueCode', 'boxCount']) &&
+             data.id is string &&
+             data.sku is string &&
+             data.uniqueCode is string &&
+             data.boxCount is number;
+    }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['currentSequence']) &&
+             data.currentSequence is string;
+    }
+
+    // User Data Match Blocks
+    match /users/{userId} {
+      match /materials/{sku} {
+        allow read, list: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidMaterial(incoming()) && isValidId(sku);
+        allow delete: if isOwner(userId);
+      }
+
+      match /labels/{labelId} {
+        allow read, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidLabel(incoming()) && isValidId(labelId);
+        allow update: if isOwner(userId) && isValidLabel(incoming()) && 
+                        incoming().id == existing().id; // Immutable ID
+        allow delete: if isOwner(userId);
+      }
+
+      match /config/main {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidConfig(incoming());
+      }
+    }
+  }
+}

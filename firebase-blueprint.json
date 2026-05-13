@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "MaterialMaster": {
+      "title": "Material Master",
+      "description": "Definition of a material/product in the master catalog.",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "description": { "type": "string" },
+        "qtyPerPallet": { "type": "number" }
+      },
+      "required": ["sku", "description", "qtyPerPallet"]
+    },
+    "ProductLabel": {
+      "title": "Product Label",
+      "description": "Represents a pallet/label in the inventory.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sku": { "type": "string" },
+        "description": { "type": "string" },
+        "receptionDate": { "type": "string" },
+        "batch": { "type": "string" },
+        "expirationDate": { "type": "string" },
+        "uniqueCode": { "type": "string" },
+        "boxCount": { "type": "number" },
+        "standardQty": { "type": "number" },
+        "totalBatchQty": { "type": "number" },
+        "palletIndex": { "type": "number" },
+        "totalPallets": { "type": "number" },
+        "tripNumber": { "type": "string" }
+      },
+      "required": ["id", "sku", "description", "receptionDate", "batch", "uniqueCode", "boxCount"]
+    },
+    "UserConfig": {
+      "title": "User Configuration",
+      "description": "Global settings for the user, like current sequence code.",
+      "type": "object",
+      "properties": {
+        "currentSequence": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}/materials/{sku}": {
+      "schema": "MaterialMaster",
+      "description": "Collection of materials belonging to a user."
+    },
+    "/users/{userId}/labels/{labelId}": {
+      "schema": "ProductLabel",
+      "description": "Collection of pallet labels belonging to a user."
+    },
+    "/users/{userId}/config/main": {
+      "schema": "UserConfig",
+      "description": "User specific configuration."
+    }
+  }
+}

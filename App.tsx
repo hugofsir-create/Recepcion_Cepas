@@ -13,22 +13,109 @@ import SplashScreen from './components/SplashScreen';
 import { AnimatePresence } from 'framer-motion';
 import { 
   Printer, Trash2, Box, Database, Layers,
-  Search, Edit3, PackageCheck, FileSpreadsheet, AlertTriangle, BookOpen, Download, Upload, BarChart3, FileQuestion, Eye, RotateCcw
+  Search, Edit3, PackageCheck, FileSpreadsheet, AlertTriangle, BookOpen, Download, Upload, BarChart3, FileQuestion, Eye, RotateCcw,
+  LogIn, LogOut, Cloud
 } from 'lucide-react';
+import { auth, db, signInWithGoogle } from './lib/firebase';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { 
+  collection, doc, setDoc, getDocs, onSnapshot, writeBatch, query, where, getDoc
+} from 'firebase/firestore';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  }
+}
+
+const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // We don't want to crash the whole app if one write fails, but we should log it
+};
 
 const App: React.FC = () => {
-  const [labels, setLabels] = useState<ProductLabel[]>(() => {
-    const saved = localStorage.getItem('logispro_labels');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [masterData, setMasterData] = useState<Record<string, MaterialMaster>>(() => {
-    const saved = localStorage.getItem('logispro_master');
-    return saved ? JSON.parse(saved) : {};
-  });
-  const [currentCode, setCurrentCode] = useState<string>(() => {
-    const saved = localStorage.getItem('logispro_seq');
-    return saved || "AA001";
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Fallback / Initial Local Data
+  const getLocalData = () => {
+    try {
+      const current = localStorage.getItem('logispro_labels');
+      if (current) {
+        const parsed = JSON.parse(current);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      
+      const salvaged: ProductLabel[] = [];
+      const seenIds = new Set<string>();
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        try {
+          const val = JSON.parse(localStorage.getItem(key) || "");
+          if (Array.isArray(val) && val.length > 0) {
+            const first = val[0];
+            if (first && typeof first === 'object' && (first.sku || first.uniqueCode)) {
+              val.forEach((item: any) => {
+                const id = item.id || item.uniqueCode || Math.random().toString();
+                if (!seenIds.has(id)) { salvaged.push(item); seenIds.add(id); }
+              });
+            }
+          }
+        } catch (e) {}
+      }
+      return salvaged;
+    } catch (e) { return []; }
+  };
+
+  const getLocalMaster = () => {
+    try {
+      const current = localStorage.getItem('logispro_master');
+      if (current) return JSON.parse(current);
+      
+      const salvaged: Record<string, MaterialMaster> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        try {
+          const val = JSON.parse(localStorage.getItem(key) || "");
+          if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+            const keys = Object.keys(val);
+            if (keys.length > 0 && val[keys[0]].sku) Object.assign(salvaged, val);
+          }
+        } catch (e) {}
+      }
+      return salvaged;
+    } catch (e) { return {}; }
+  };
+
+  const [labels, setLabels] = useState<ProductLabel[]>(getLocalData);
+  const [masterData, setMasterData] = useState<Record<string, MaterialMaster>>(getLocalMaster);
+  const [currentCode, setCurrentCode] = useState<string>(() => localStorage.getItem('logispro_seq') || "AA001");
 
   const [activeTab, setActiveTab] = useState<'individual' | 'bulk' | 'inventory' | 'master'>('individual');
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,18 +128,112 @@ const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSplash, setShowSplash] = useState(true);
 
+  // Auth Listener
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 3500); // A bit more than 3s to ensure progress bar finishes
-    return () => clearTimeout(timer);
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
+  // Firebase Logic
   useEffect(() => {
-    localStorage.setItem('logispro_labels', JSON.stringify(labels));
-    localStorage.setItem('logispro_master', JSON.stringify(masterData));
-    localStorage.setItem('logispro_seq', currentCode);
-  }, [labels, masterData, currentCode]);
+    if (!user) {
+      localStorage.setItem('logispro_labels', JSON.stringify(labels));
+      localStorage.setItem('logispro_master', JSON.stringify(masterData));
+      localStorage.setItem('logispro_seq', currentCode);
+      return;
+    };
+
+    // When logged in, Firestore is source of truth
+    const unsubLabels = onSnapshot(collection(db, 'users', user.uid, 'labels'), (snap) => {
+      const cloudLabels = snap.docs.map(d => d.data() as ProductLabel);
+      if (cloudLabels.length > 0) setLabels(cloudLabels);
+    });
+
+    const unsubMaster = onSnapshot(collection(db, 'users', user.uid, 'materials'), (snap) => {
+      const cloudMaster: Record<string, MaterialMaster> = {};
+      snap.docs.forEach(d => {
+        const m = d.data() as MaterialMaster;
+        cloudMaster[m.sku] = m;
+      });
+      if (Object.keys(cloudMaster).length > 0) setMasterData(cloudMaster);
+    });
+
+    const unsubConfig = onSnapshot(doc(db, 'users', user.uid, 'config', 'main'), (snap) => {
+      if (snap.exists()) {
+        const config = snap.data();
+        if (config.currentSequence) setCurrentCode(config.currentSequence);
+      }
+    });
+
+    return () => { unsubLabels(); unsubMaster(); unsubConfig(); };
+  }, [user]);
+
+  // Sync LOCAL to CLOUD on login if cloud is empty
+  const syncToCloud = async () => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+      
+      // If user has local data but cloud is empty, move it
+      const cloudLabelsSnap = await getDocs(collection(db, 'users', user.uid, 'labels'));
+      if (cloudLabelsSnap.empty && labels.length > 0) {
+        labels.forEach(l => {
+          const d = doc(db, 'users', user.uid, 'labels', l.id);
+          batch.set(d, l);
+        });
+      }
+
+      const cloudMasterSnap = await getDocs(collection(db, 'users', user.uid, 'materials'));
+      if (cloudMasterSnap.empty && Object.keys(masterData).length > 0) {
+        Object.keys(masterData).forEach(sku => {
+          const d = doc(db, 'users', user.uid, 'materials', sku);
+          batch.set(d, masterData[sku]);
+        });
+      }
+
+      const cloudConfigSnap = await getDoc(doc(db, 'users', user.uid, 'config', 'main'));
+      if (!cloudConfigSnap.exists()) {
+        const d = doc(db, 'users', user.uid, 'config', 'main');
+        batch.set(d, { currentSequence: currentCode });
+      }
+
+      await batch.commit();
+      alert("Sincronización inicial con la nube completada.");
+    } catch (e) {
+      console.error("Sync error:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (user && !isAuthLoading) {
+      syncToCloud();
+    }
+  }, [user, isAuthLoading]);
+
+  // Wrap set functions to also push to Firestore if logged in
+  const pushToFirestore = async (entity: 'label' | 'master' | 'seq', data: any) => {
+    if (!user) return;
+    try {
+      if (entity === 'label') {
+        if (Array.isArray(data)) {
+          const batch = writeBatch(db);
+          data.forEach(l => {
+            batch.set(doc(db, 'users', user.uid, 'labels', l.id), l);
+          });
+          await batch.commit();
+        } else {
+          await setDoc(doc(db, 'users', user.uid, 'labels', data.id), data);
+        }
+      } else if (entity === 'master') {
+        await setDoc(doc(db, 'users', user.uid, 'materials', data.sku), data);
+      } else if (entity === 'seq') {
+        await setDoc(doc(db, 'users', user.uid, 'config', 'main'), { currentSequence: data });
+      }
+    } catch (e) { console.error("Write error:", e); }
+  };
 
   const handleImportMaster = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,7 +309,7 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const addIndividualLabel = (data: any) => {
+  const addIndividualLabel = async (data: any) => {
     const { labels: newLabels, nextSeq } = splitIntoPallets(
       data.sku.toUpperCase(),
       parseInt(data.totalBatchQty || "0"),
@@ -145,6 +326,15 @@ const App: React.FC = () => {
     setLabels(prev => [...prev, ...labelsWithIds]);
     setCurrentCode(nextSeq);
 
+    if (user) {
+      try {
+        await pushToFirestore('label', labelsWithIds);
+        await pushToFirestore('seq', nextSeq);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/labels`);
+      }
+    }
+
     if (data.shouldPrint) {
       setPrintingSubset(labelsWithIds);
       setTimeout(() => {
@@ -154,7 +344,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleBulkGenerate = (entries: any[]) => {
+  const handleBulkGenerate = async (entries: any[]) => {
     let tempSeq = currentCode;
     let allNewLabels: ProductLabel[] = [];
     const newMasterData = { ...masterData };
@@ -191,9 +381,30 @@ const App: React.FC = () => {
     
     if (masterChanged) {
       setMasterData(newMasterData);
+      if (user) {
+        // Sync new master data to cloud
+        try {
+          const batch = writeBatch(db);
+          Object.values(newMasterData).forEach(m => {
+            batch.set(doc(db, 'users', user.uid, 'materials', m.sku), m);
+          });
+          await batch.commit();
+        } catch (e) {
+          handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/materials`);
+        }
+      }
     }
     setLabels(prev => [...prev, ...allNewLabels]);
     setCurrentCode(tempSeq);
+
+    if (user) {
+      try {
+        await pushToFirestore('label', allNewLabels);
+        await pushToFirestore('seq', tempSeq);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}`);
+      }
+    }
 
     // Trigger print for new labels
     setPrintingSubset(allNewLabels);
@@ -251,23 +462,51 @@ const App: React.FC = () => {
     }, 150);
   };
 
-  const updateLabel = (updated: ProductLabel) => {
+  const updateLabel = async (updated: ProductLabel) => {
     setLabels(prev => prev.map(l => l.id === updated.id ? updated : l));
     setEditingLabel(null);
-  };
-
-  const removeLabel = (id: string) => {
-    if(confirm("¿Confirmas la salida de este pallet?")) {
-      setLabels(prev => prev.filter(l => l.id !== id));
-      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+    if (user) {
+      try {
+        await pushToFirestore('label', updated);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/labels/${updated.id}`);
+      }
     }
   };
 
-  const handleBulkDelete = () => {
+  const removeLabel = async (id: string) => {
+    if(confirm("¿Confirmas la salida de este pallet?")) {
+      setLabels(prev => prev.filter(l => l.id !== id));
+      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+      if (user) {
+        try {
+          const { deleteDoc, doc: fsDoc } = await import('firebase/firestore');
+          await deleteDoc(fsDoc(db, 'users', user.uid, 'labels', id));
+        } catch (e) {
+          handleFirestoreError(e, OperationType.DELETE, `users/${user.uid}/labels/${id}`);
+        }
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (confirm(`¿Confirmas la salida masiva de ${selectedIds.length} pallets?`)) {
-      setLabels(prev => prev.filter(l => !selectedIds.includes(l.id)));
+      const idsToRemove = [...selectedIds];
+      setLabels(prev => prev.filter(l => !idsToRemove.includes(l.id)));
       setSelectedIds([]);
+      if (user) {
+        try {
+          const { writeBatch, doc: fsDoc } = await import('firebase/firestore');
+          const batch = writeBatch(db);
+          idsToRemove.forEach(id => {
+            batch.delete(fsDoc(db, 'users', user.uid, 'labels', id));
+          });
+          await batch.commit();
+        } catch (e) {
+          handleFirestoreError(e, OperationType.DELETE, `users/${user.uid}/labels`);
+        }
+      }
     }
   };
 
@@ -285,15 +524,30 @@ const App: React.FC = () => {
     }
   };
 
-  const updateMaster = (newProduct: MaterialMaster) => {
+  const updateMaster = async (newProduct: MaterialMaster) => {
     setMasterData(prev => ({ ...prev, [newProduct.sku.toUpperCase()]: newProduct }));
+    if (user) {
+      try {
+        await pushToFirestore('master', newProduct);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/materials/${newProduct.sku}`);
+      }
+    }
   };
 
-  const deleteFromMaster = (sku: string) => {
+  const deleteFromMaster = async (sku: string) => {
     if(confirm(`¿Eliminar ${sku} del maestro?`)) {
       const newData = { ...masterData };
       delete newData[sku];
       setMasterData(newData);
+      if (user) {
+        try {
+          const { deleteDoc, doc: fsDoc } = await import('firebase/firestore');
+          await deleteDoc(fsDoc(db, 'users', user.uid, 'materials', sku));
+        } catch (e) {
+          handleFirestoreError(e, OperationType.DELETE, `users/${user.uid}/materials/${sku}`);
+        }
+      }
     }
   };
 
@@ -332,16 +586,37 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if(confirm("¿BORRAR TODO EL INVENTARIO ACTUAL?")) {
+      const labelsToDelete = [...labels];
       setLabels([]);
       setCurrentCode("AA001");
+      if (user) {
+        try {
+          const { writeBatch, doc: fsDoc } = await import('firebase/firestore');
+          const batch = writeBatch(db);
+          labelsToDelete.forEach(l => {
+            batch.delete(fsDoc(db, 'users', user.uid, 'labels', l.id));
+          });
+          batch.set(fsDoc(db, 'users', user.uid, 'config', 'main'), { currentSequence: "AA001" });
+          await batch.commit();
+        } catch (e) {
+          handleFirestoreError(e, OperationType.DELETE, `users/${user.uid}`);
+        }
+      }
     }
   };
 
-  const resetSequence = () => {
+  const resetSequence = async () => {
     if(confirm("¿Reiniciar el contador de etiquetas a AA001?")) {
       setCurrentCode("AA001");
+      if (user) {
+        try {
+          await pushToFirestore('seq', "AA001");
+        } catch (e) {
+          handleFirestoreError(e, OperationType.WRITE, `users/${user.uid}/config/main`);
+        }
+      }
     }
   };
 
@@ -375,9 +650,30 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <button 
-            onClick={resetSequence}
+          <div className="flex flex-wrap items-center gap-4">
+            {user ? (
+              <div className="flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-xl border border-slate-700">
+                <Cloud size={16} className="text-green-500 animate-pulse" />
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-black uppercase text-slate-500 tracking-tighter">Sincronizado</span>
+                  <span className="text-[10px] font-bold text-slate-100 truncate max-w-[100px]">{user.email}</span>
+                </div>
+                <button onClick={() => signOut(auth)} className="ml-2 p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-all">
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={signInWithGoogle}
+                className="flex items-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl shadow-xl shadow-blue-900/20 transition-all font-black text-xs active:scale-95"
+              >
+                <LogIn size={18} />
+                <span className="uppercase">Iniciar Sesión para Guardar</span>
+              </button>
+            )}
+
+            <button 
+              onClick={resetSequence}
             className="flex items-center space-x-2 px-4 py-2.5 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/30 rounded-xl border border-slate-700 transition-all text-slate-400"
             title="Reiniciar secuencia a AA001"
           >
@@ -483,9 +779,10 @@ const App: React.FC = () => {
                   <Upload size={14} /> Importar Backup
                   <input type="file" accept=".json" onChange={importBackup} className="hidden" />
                 </label>
+                
                 <button 
                   onClick={clearAll} 
-                  className="w-full mt-2 text-[9px] font-black text-red-500/30 hover:text-red-500 transition-all uppercase tracking-widest text-center"
+                  className="w-full mt-10 text-[9px] font-black text-red-500/10 hover:text-red-500 transition-all uppercase tracking-widest text-center"
                 >
                   Vaciar Inventario
                 </button>
