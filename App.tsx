@@ -135,90 +135,119 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Firebase Logic
+  // Persist to localStorage only when offline (not logged in)
   useEffect(() => {
     if (!user) {
       localStorage.setItem('logispro_labels', JSON.stringify(labels));
       localStorage.setItem('logispro_master', JSON.stringify(masterData));
       localStorage.setItem('logispro_seq', currentCode);
-      return;
-    };
-
-    // When logged in, Firestore is source of truth
-    const unsubLabels = onSnapshot(collection(db, 'users', user.uid, 'labels'), (snap) => {
-      const cloudLabels = snap.docs.map(d => d.data() as ProductLabel);
-      if (cloudLabels.length > 0) setLabels(cloudLabels);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/labels`));
-
-    const unsubMaster = onSnapshot(collection(db, 'users', user.uid, 'materials'), (snap) => {
-      const cloudMaster: Record<string, MaterialMaster> = {};
-      snap.docs.forEach(d => {
-        const m = d.data() as MaterialMaster;
-        cloudMaster[m.sku] = m;
-      });
-      if (Object.keys(cloudMaster).length > 0) setMasterData(cloudMaster);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/materials`));
-
-    const unsubConfig = onSnapshot(doc(db, 'users', user.uid, 'config', 'main'), (snap) => {
-      if (snap.exists()) {
-        const config = snap.data();
-        if (config.currentSequence) setCurrentCode(config.currentSequence);
-      }
-    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}/config/main`));
-
-    return () => { unsubLabels(); unsubMaster(); unsubConfig(); };
-  }, [user]);
-
-  // Sync LOCAL to CLOUD on login if cloud is empty
-  const syncToCloud = async () => {
-    if (!user) return;
-    try {
-      const batch = writeBatch(db);
-      
-      // If user has local data but cloud is empty, move it
-      const cloudLabelsSnap = await getDocs(collection(db, 'users', user.uid, 'labels'));
-      if (cloudLabelsSnap.empty && labels.length > 0) {
-        labels.forEach(l => {
-          const d = doc(db, 'users', user.uid, 'labels', l.id);
-          batch.set(d, l);
-        });
-      }
-
-      const cloudMasterSnap = await getDocs(collection(db, 'users', user.uid, 'materials'));
-      if (cloudMasterSnap.empty && Object.keys(masterData).length > 0) {
-        Object.keys(masterData).forEach(sku => {
-          const d = doc(db, 'users', user.uid, 'materials', sku);
-          batch.set(d, masterData[sku]);
-        });
-      }
-
-      const cloudConfigSnap = await getDoc(doc(db, 'users', user.uid, 'config', 'main'));
-      if (!cloudConfigSnap.exists()) {
-        const d = doc(db, 'users', user.uid, 'config', 'main');
-        batch.set(d, { currentSequence: currentCode });
-      }
-
-      await batch.commit();
-      alert("Sincronización inicial con la nube completada.");
-    } catch (e) {
-      console.error("Sync error:", e);
     }
-  };
+  }, [labels, masterData, currentCode, user]);
 
+  // Firebase Auth, initial synchronization, and snapshot listener configuration
   useEffect(() => {
-    if (user && !isAuthLoading) {
-      syncToCloud();
-    }
-  }, [user, isAuthLoading]);
+    let unsubs: (() => void)[] = [];
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
+      // Unsubscribe any previous snapshot listeners
+      unsubs.forEach(unsub => unsub());
+      unsubs = [];
+
+      if (u) {
+        setUser(u);
+        setIsAuthLoading(false);
+
+        try {
+          // Read local storage backups to see what we can sync
+          const localLabelsRaw = localStorage.getItem('logispro_labels');
+          const localMasterRaw = localStorage.getItem('logispro_master');
+          const localSeq = localStorage.getItem('logispro_seq') || "AA001";
+
+          let localLabels: ProductLabel[] = [];
+          try { localLabels = localLabelsRaw ? JSON.parse(localLabelsRaw) : []; } catch(e){}
+
+          let localMaster: Record<string, MaterialMaster> = {};
+          try { localMaster = localMasterRaw ? JSON.parse(localMasterRaw) : {}; } catch(e){}
+
+          // Fetch cloud equivalents to compare
+          const [cloudLabelsSnap, cloudMasterSnap, cloudConfigSnap] = await Promise.all([
+            getDocs(collection(db, 'users', u.uid, 'labels')),
+            getDocs(collection(db, 'users', u.uid, 'materials')),
+            getDoc(doc(db, 'users', u.uid, 'config', 'main'))
+          ]);
+
+          const batch = writeBatch(db);
+          let syncNeeded = false;
+
+          // Sync labels if cloud is empty
+          if (cloudLabelsSnap.empty && localLabels.length > 0) {
+            localLabels.forEach(l => {
+              batch.set(doc(db, 'users', u.uid, 'labels', l.id), l);
+            });
+            syncNeeded = true;
+          }
+
+          // Sync master if cloud is empty
+          if (cloudMasterSnap.empty && Object.keys(localMaster).length > 0) {
+            Object.keys(localMaster).forEach(sku => {
+              batch.set(doc(db, 'users', u.uid, 'materials', sku), localMaster[sku]);
+            });
+            syncNeeded = true;
+          }
+
+          // Sync config if cloud is empty
+          if (!cloudConfigSnap.exists() && localSeq) {
+            batch.set(doc(db, 'users', u.uid, 'config', 'main'), { currentSequence: localSeq });
+            syncNeeded = true;
+          }
+
+          if (syncNeeded) {
+            await batch.commit();
+            console.log("Local inventory successfully synced to Firebase.");
+          }
+
+          // Set up real-time snapshot listeners now that cloud has the correct state
+          const unsubLabels = onSnapshot(collection(db, 'users', u.uid, 'labels'), (snap) => {
+            const cloudLabels = snap.docs.map(d => d.data() as ProductLabel);
+            setLabels(cloudLabels); // Correctly sets labels to empty if all are deleted in the cloud
+          }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${u.uid}/labels`));
+
+          const unsubMaster = onSnapshot(collection(db, 'users', u.uid, 'materials'), (snap) => {
+            const cloudMaster: Record<string, MaterialMaster> = {};
+            snap.docs.forEach(d => {
+              const m = d.data() as MaterialMaster;
+              cloudMaster[m.sku] = m;
+            });
+            setMasterData(cloudMaster);
+          }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${u.uid}/materials`));
+
+          const unsubConfig = onSnapshot(doc(db, 'users', u.uid, 'config', 'main'), (snap) => {
+            if (snap.exists()) {
+              const config = snap.data();
+              if (config.currentSequence) setCurrentCode(config.currentSequence);
+            }
+          }, (err) => handleFirestoreError(err, OperationType.GET, `users/${u.uid}/config/main`));
+
+          unsubs.push(unsubLabels, unsubMaster, unsubConfig);
+
+        } catch (e) {
+          console.error("Error setting up synched listeners:", e);
+        }
+      } else {
+        setUser(null);
+        setIsAuthLoading(false);
+        // Clean load of local fallback data upon logout
+        setLabels(getLocalData());
+        setMasterData(getLocalMaster());
+        setCurrentCode(localStorage.getItem('logispro_seq') || "AA001");
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubs.forEach(unsub => unsub());
+    };
+  }, []);
 
   // Wrap set functions to also push to Firestore if logged in
   const pushToFirestore = async (entity: 'label' | 'master' | 'seq', data: any) => {
@@ -294,6 +323,32 @@ const App: React.FC = () => {
         });
 
         setMasterData(newMaster);
+
+        if (user) {
+          const syncImportedMaster = async () => {
+            try {
+              let batch = writeBatch(db);
+              let opCount = 0;
+              for (const sku in newMaster) {
+                batch.set(doc(db, 'users', user.uid, 'materials', sku), newMaster[sku]);
+                opCount++;
+                if (opCount >= 400) {
+                  await batch.commit();
+                  batch = writeBatch(db);
+                  opCount = 0;
+                }
+              }
+              if (opCount > 0) {
+                await batch.commit();
+              }
+              console.log("Imported materials successfully synced to Firestore.");
+            } catch (err) {
+              handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/materials`);
+            }
+          };
+          syncImportedMaster();
+        }
+
         alert(`¡Importación exitosa!\nSe cargaron/actualizaron ${count} productos en el maestro.`);
       } catch (err) {
         console.error(err);
@@ -579,13 +634,62 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const data = JSON.parse(evt.target?.result as string);
         if (data.labels) setLabels(data.labels);
         if (data.masterData) setMasterData(data.masterData);
         if (data.currentCode) setCurrentCode(data.currentCode);
-        alert("Backup restaurado con éxito.");
+
+        if (user) {
+          try {
+            // Push labels to firestore
+            if (data.labels && Array.isArray(data.labels)) {
+              let batch = writeBatch(db);
+              let opCount = 0;
+              for (const l of data.labels) {
+                batch.set(doc(db, 'users', user.uid, 'labels', l.id), l);
+                opCount++;
+                if (opCount >= 400) {
+                  await batch.commit();
+                  batch = writeBatch(db);
+                  opCount = 0;
+                }
+              }
+              if (opCount > 0) await batch.commit();
+            }
+
+            // Push master data to firestore
+            if (data.masterData && typeof data.masterData === 'object') {
+              let batch = writeBatch(db);
+              let opCount = 0;
+              const keys = Object.keys(data.masterData);
+              for (const k of keys) {
+                const m = data.masterData[k];
+                batch.set(doc(db, 'users', user.uid, 'materials', m.sku), m);
+                opCount++;
+                if (opCount >= 400) {
+                  await batch.commit();
+                  batch = writeBatch(db);
+                  opCount = 0;
+                }
+              }
+              if (opCount > 0) await batch.commit();
+            }
+
+            // Push sequence config
+            if (data.currentCode) {
+              await setDoc(doc(db, 'users', user.uid, 'config', 'main'), { currentSequence: data.currentCode });
+            }
+
+            alert("Backup restaurado y guardado en la nube con éxito.");
+          } catch (err) {
+            handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+            alert("El backup local se cargó, pero hubo un error al sincronizar con la nube.");
+          }
+        } else {
+          alert("Backup restaurado localmente con éxito.");
+        }
       } catch (err) {
         alert("Error al leer el archivo de backup.");
       }
